@@ -4,6 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Requisição Fácil - Usina Laguna</title>
+    
+    <!-- CONFIGURAÇÕES PWA (Para virar App sem anúncios) -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#2a4da1">
+    <link rel="apple-touch-icon" href="logo.png">
+
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
     
@@ -20,22 +26,46 @@
         * { box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
         body { background-color: var(--secondary-color); color: var(--text-color); margin: 0; padding: 0; }
         
+        /* --- CABEÇALHO CORRIGIDO PARA LOGO PERFEITA --- */
         header { 
-            background-color: var(--white); /* MUDADO PARA BRANCO para combinar com a logo */
+            background-color: var(--white); 
             color: var(--primary-color); 
-            padding: 1rem 2rem; 
+            padding: 0.5rem 2rem; 
             display: flex; 
             justify-content: space-between; 
             align-items: center;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-            border-bottom: 4px solid var(--primary-color);
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            border-bottom: 5px solid var(--primary-color);
+            min-height: 100px; /* Espaço maior para a logo respirar */
         }
         
-        .header-left { display: flex; align-items: center; gap: 20px; }
-        .header-logo { height: 60px; width: auto; } /* REMOVIDO O FILTRO que apagava a logo */
+        .header-left { 
+            display: flex; 
+            align-items: center; 
+            gap: 20px; 
+        }
         
-        header h1 { margin: 0; font-size: 1.4rem; line-height: 1; color: var(--primary-color); }
-        header p { margin: 0; font-size: 0.8rem; opacity: 0.8; color: var(--text-color); }
+        .header-logo { 
+            height: 85px; /* Logo maior e mais visível */
+            width: auto; 
+            object-fit: contain; 
+            display: block;
+        }
+        
+        header h1 { 
+            margin: 0; 
+            font-size: 1.6rem; 
+            line-height: 1.1; 
+            color: var(--primary-color); 
+            font-weight: 800;
+        }
+        header p { 
+            margin: 0; 
+            font-size: 0.9rem; 
+            color: #666; 
+            font-weight: 500;
+        }
+        /* --- FIM DA CORREÇÃO DO CABEÇALHO --- */
 
         .container { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; padding: 20px; max-width: 1400px; margin: 0 auto; }
         @media (max-width: 900px) { .container { grid-template-columns: 1fr; } }
@@ -285,6 +315,15 @@
                     document.getElementById('adm-type').value = m.type;
                 };
                 list.appendChild(item);
+            });
+        }
+
+        // REGISTRO DO SERVICE WORKER (Para virar App)
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('sw.js').then(() => {
+                    console.log('App pronto para instalação!');
+                }).catch(err => console.log('Erro SW:', err));
             });
         }
     </script>
