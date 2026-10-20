@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Requisição Fácil - Usina Laguna</title>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+    
+    <style>
+        :root {
+            --primary-color: #2a4da1; /* Azul Usina Laguna */
+            --secondary-color: #f4f7f6; 
+            --accent-color: #4caf50;    /* Verde Energia Renovável */
+            --text-color: #333;
+            --white: #ffffff; 
+            --danger: #d9534f; 
+            --border-color: #ccc;
+        }
+        * { box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        body { background-color: var(--secondary-color); color: var(--text-color); margin: 0; padding: 0; }
+        
+        header { 
+            background-color: var(--primary-color); 
+            color: var(--white); 
+            padding: 1rem 2rem; 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+        
+        .header-left { display: flex; align-items: center; gap: 20px; }
+        .header-logo { height: 60px; width: auto; filter: brightness(0) invert(1); } /* Torna a logo branca para destacar no azul */
+        
+        header h1 { margin: 0; font-size: 1.4rem; line-height: 1; }
+        header p { margin: 0; font-size: 0.8rem; opacity: 0.9; }
+
+        .container { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; padding: 20px; max-width: 1400px; margin: 0 auto; }
+        @media (max-width: 900px) { .container { grid-template-columns: 1fr; } }
+        
+        .card { background: var(--white); border-radius: 8px; padding: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); border-top: 5px solid var(--primary-color); }
+        .card h2 { margin-top: 0; color: var(--primary-color); border-bottom: 1px solid #eee; padding-bottom: 10px; }
+        
+        .search-box { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 20px; }
+        input, select { padding: 10px; border: 1px solid var(--border-color); border-radius: 4px; font-size: 1rem; }
+        .search-box input { flex: 2; min-width: 200px; }
+        .search-box select { flex: 1; min-width: 150px; }
+        
+        .results-list { max-height: 400px; overflow-y: auto; border: 1px solid #eee; border-radius: 4px; }
+        .result-item { display: flex; justify-content: space-between; align-items: center; padding: 10px; border-bottom: 1px solid #eee; transition: background 0.2s; }
+        .result-item:hover { background: #f9f9f9; }
+        .result-info { display: flex; flex-direction: column; }
+        .result-ci { font-weight: bold; color: var(--primary-color); font-size: 0.85rem; }
+        .result-desc { font-size: 0.95rem; }
+        .result-type { font-size: 0.75rem; color: #666; font-style: italic; }
+        
+        .request-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+        .request-table th, .request-table td { text-align: left; padding: 10px; border-bottom: 1px solid #eee; font-size: 0.9rem; }
+        .request-table th { background: #f8f8f8; color: var(--primary-color); }
+        
+        .btn { padding: 10px 15px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; display: inline-flex; align-items: center; justify-content: center; gap: 5px; }
+        .btn-primary { background: var(--primary-color); color: white; }
+        .btn-accent { background: var(--accent-color); color: white; }
+        .btn-danger { background: var(--danger); color: white; }
+        .btn-sm { padding: 5px 10px; font-size: 0.8rem; }
+        
+        #admin-section { display: none; margin-top: 20px; }
+        .admin-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .form-group { margin-bottom: 15px; display: flex; flex-direction: column; }
+        .form-group label { font-weight: bold; margin-bottom: 5px; font-size: 0.9rem; }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="header-left">
+            <!-- A LOGO VAI AQUI -->
+            <img src="logo.png" alt="Logo Usina Laguna" class="header-logo">
+            <div>
+                <h1>Requisição Fácil</h1>
+                <p>Sistema de Almoxarifado - Usina Laguna</p>
+            </div>
+        </div>
+        <button class="btn btn-accent" onclick="toggleAdmin()">⚙️ Painel de Controle</button>
+    </header>
+
+    <div class="container">
+        <div class="card">
+            <h2>🔍 Localizar Material</h2>
+            <div class="search-box">
+                <input type="text" id="search-input" placeholder="Digite o nome ou CI..." oninput="searchMaterials()">
+                <select id="filter-type" onchange="searchMaterials()">
+                    <option value="">Todos os Tipos</option>
+                    <option value="Moenda">Moenda</option>
+                    <option value="Preparo de Cana">Preparo de Cana</option>
+                    <option value="Pintura">Pintura</option>
+                    <option value="Intersafra">Intersafra</option>
+                    <option value="Gerais">Gerais</option>
+                    <option value="Mais Usados">Mais Usados</option>
+                </select>
+            </div>
+            <div id="results" class="results-list"></div>
+        </div>
+
+        <div class="card">
+            <h2>📋 Lista de Materiais <span id="item-count" style="font-size: 1rem; background: var(--accent-color); color: white; padding: 2px 8px; border-radius: 10px; float: right;">0</span></h2>
+            <table class="request-table">
+                <thead><tr><th>CI</th><th>Descrição</th><th style="width: 80px; text-align: center;">Ação</th></tr></thead>
+                <tbody id="request-body"></tbody>
+            </table>
+            <div style="display: flex; justify-content: flex-end;"><button class="btn btn-danger" onclick="clearRequest()">🗑️ Limpar Lista</button></div>
+        </div>
+    </div>
+
+    <div id="admin-section" class="container">
+        <div class="card" style="grid-column: span 2;">
+            <h2>🛠️ Painel de Controle (Nuvem)</h2>
+            <div class="admin-grid">
+                <div>
+                    <h3>Cadastrar/Editar Material</h3>
+                    <div class="form-group"><label>CI</label><input type="text" id="adm-ci"></div>
+                    <div class="form-group"><label>Descrição</label><input type="text" id="adm-desc"></div>
+                    <div class="form-group"><label>Unidade</label><input type="text" id="adm-unit"></div>
+                    <div class="form-group">
+                        <label>Tipo/Setor</label>
+                        <select id="adm-type">
+                            <option value="Gerais">Gerais</option>
+                            <option value="Moenda">Moenda</option>
+                            <option value="Preparo de Cana">Preparo de Cana</option>
+                            <option value="Pintura">Pintura</option>
+                            <option value="Intersafra">Intersafra</option>
+                            <option value="Mais Usados">Mais Usados</option>
+                        </select>
+                    </div>
+                    <button class="btn btn-primary" onclick="saveMaterial()">💾 Salvar na Nuvem</button>
+                </div>
+                <div>
+                    <h3>Base de Dados Online</h3>
+                    <div id="adm-materials-list" class="results-list"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // CONFIGURAÇÕES DO SEU PROJETO (LAGUNA CI)
+        const firebaseConfig = {
+          apiKey: "AIzaSyBdPIUD92xNSn59X_qzaKBUO-lvQyz2814",
+          authDomain: "laguna-ci.firebaseapp.com",
+          databaseURL: "https://laguna-ci-default-rtdb.firebaseio.com",
+          projectId: "laguna-ci",
+          storageBucket: "laguna-ci.firebasestorage.app",
+          messagingSenderId: "828941215594",
+          appId: "1:828941215594:web:300f4a7b0ee80abe1aa713"
+        };
+
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+        let materials = [];
+        let requestItems = [];
+
+        window.onload = () => { fetchMaterials(); };
+
+        function fetchMaterials() {
+            db.collection("materiais").onSnapshot((snapshot) => {
+                materials = [];
+                snapshot.forEach((doc) => { materials.push({ id: doc.id, ...doc.data() }); });
+                searchMaterials();
+                renderAdminList();
+            }, (error) => {
+                alert("Erro de conexão! Verifique as regras do Firebase.");
+            });
+        }
+
+        function searchMaterials() {
+            const term = document.getElementById('search-input').value.toLowerCase();
+            const typeFilter = document.getElementById('filter-type').value;
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = '';
+
+            const filtered = materials.filter(m => {
+                const matchTerm = m.desc.toLowerCase().includes(term) || m.ci.toLowerCase().includes(term);
+                const matchType = typeFilter === '' || m.type === typeFilter;
+                return matchTerm && matchType;
+            });
+
+            if (filtered.length === 0) {
+                resultsDiv.innerHTML = '<div style="padding:20px; text-align:center; color:#888;">Nenhum material encontrado.</div>';
+                return;
+            }
+
+            filtered.forEach(m => {
+                const item = document.createElement('div');
+                item.className = 'result-item';
+                item.innerHTML = `
+                    <div class="result-info">
+                        <span class="result-ci">${m.ci}</span>
+                        <span class="result-desc">${m.desc}</span>
+                        <span class="result-type">${m.type}</span>
+                    </div>
+                    <div style="display:flex; gap:5px;">
+                        <button class="btn btn-primary btn-sm" onclick="addToRequest('${m.ci}')">➕ Adicionar</button>
+                        <button class="btn btn-danger btn-sm" onclick="deleteMaterialQuick('${m.id}')">🗑️</button>
+                    </div>`;
+                resultsDiv.appendChild(item);
+            });
+        }
+
+        function addToRequest(ci) {
+            const material = materials.find(m => m.ci === ci);
+            if (!requestItems.find(item => item.ci === ci)) {
+                requestItems.push({ ci: material.ci, desc: material.desc });
+                renderRequest();
+            }
+        }
+
+        function renderRequest() {
+            const tbody = document.getElementById('request-body');
+            tbody.innerHTML = '';
+            document.getElementById('item-count').innerText = requestItems.length;
+            requestItems.forEach(item => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `<td><b>${item.ci}</b></td><td>${item.desc}</td><td style="text-align:center"><button class="btn btn-danger btn-sm" onclick="removeRequestItem('${item.ci}')">✕</button></td>`;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function removeRequestItem(ci) {
+            requestItems = requestItems.filter(i => i.ci !== ci);
+            renderRequest();
+        }
+
+        function clearRequest() {
+            if (confirm("Limpar a lista?")) { requestItems = []; renderRequest(); }
+        }
+
+        function toggleAdmin() {
+            const section = document.getElementById('admin-section');
+            section.style.display = section.style.display === 'none' ? 'grid' : 'none';
+            renderAdminList();
+        }
+
+        async function saveMaterial() {
+            const ci = document.getElementById('adm-ci').value.trim();
+            const desc = document.getElementById('adm-desc').value.trim();
+            const unit = document.getElementById('adm-unit').value.trim();
+            const type = document.getElementById('adm-type').value;
+
+            if (!ci || !desc) { alert("CI e Descrição são obrigatórios!"); return; }
+
+            try {
+                const existing = materials.find(m => m.ci === ci);
+                if (existing) {
+                    await db.collection("materiais").doc(existing.id).update({ desc, unit, type });
+                } else {
+                    await db.collection("materiais").add({ ci, desc, unit, type });
+                }
+                alert("Salvo na nuvem!");
+                document.getElementById('adm-ci').value = '';
+                document.getElementById('adm-desc').value = '';
+                document.getElementById('adm-unit').value = '';
+            } catch (error) {
+                alert("Erro ao salvar: " + error.message);
+            }
+        }
+
+        async function deleteMaterialQuick(id) {
+            if(confirm("Excluir permanentemente da nuvem?")) {
+                await db.collection("materiais").doc(id).delete();
+            }
+        }
+
+        function renderAdminList() {
+            const list = document.getElementById('adm-materials-list');
+            list.innerHTML = '';
+            materials.forEach(m => {
+                const item = document.createElement('div');
+                item.className = 'result-item';
+                item.style.cursor = 'pointer';
+                item.innerHTML = `<div class="result-info"><span class="result-ci">${m.ci}</span><span class="result-desc">${m.desc} (${m.type})</span></div>`;
+                item.onclick = () => {
+                    document.getElementById('adm-ci').value = m.ci;
+                    document.getElementById('adm-desc').value = m.desc;
+                    document.getElementById('adm-unit').value = m.unit;
+                    document.getElementById('adm-type').value = m.type;
+                };
+                list.appendChild(item);
+            });
+        }
+    </script>
+</body>
+</html>
